@@ -37,7 +37,8 @@ public class PostgreSqlUpsertCommandRunner : RelationalUpsertCommandRunner
         ICollection<(string ColumnName, bool IsNullable)> joinColumns,
         ICollection<(string ColumnName, IKnownValue Value)>? updateExpressions,
         KnownExpression? updateCondition,
-        bool returnResult = false)
+        bool returnResult = false,
+        ICollection<(string Alias, bool IsDeletedParam, string ColumnName)>? returnColumns = null)
     {
         var result = new StringBuilder();
         result.Append(CultureInfo.InvariantCulture, $"INSERT INTO {tableName} AS \"T\" (");
