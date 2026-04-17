@@ -282,3 +282,4 @@ public class InMemoryUpsertCommandRunner : UpsertCommandRunnerBase
         await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         return result.Select(m => returnExpression.Compile()(m.OldEntity, m.NewEntity)).ToArray();
     }
+}

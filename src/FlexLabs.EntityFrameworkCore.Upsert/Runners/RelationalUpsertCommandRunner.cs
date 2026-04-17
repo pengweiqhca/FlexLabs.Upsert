@@ -626,19 +626,15 @@ public abstract class RelationalUpsertCommandRunner : UpsertCommandRunnerBase
     }
 
     /// <summary>
-    /// Represents a single column to be returned in the OUTPUT clause with deleted/inserted pseudo-table prefix.
-    /// </summary>
-    protected record struct ReturnColumn(string Alias, bool IsDeletedParam, string ColumnName);
-
-    /// <summary>
     /// Parses a return expression to produce the list of OUTPUT columns.
     /// Supports <see cref="MemberInitExpression"/> (named class initialisers) and
     /// <see cref="NewExpression"/> (anonymous types).
     /// </summary>
-    protected static ReturnColumn[] ParseReturnExpression<TEntity, TOutput>(
+    internal static ICollection<(string Alias, bool IsDeletedParam, string ColumnName)> ParseReturnExpression<TEntity, TOutput>(
         Expression<Func<TEntity, TEntity, TOutput>> expression,
         IEntityType entityType)
     {
+        ArgumentNullException.ThrowIfNull(expression);
         var deletedParam = expression.Parameters[0];
         var insertedParam = expression.Parameters[1];
 
@@ -661,7 +657,7 @@ public abstract class RelationalUpsertCommandRunner : UpsertCommandRunnerBase
         }
     }
 
-    private static ReturnColumn ParseReturnColumn(
+    private static (string Alias, bool IsDeletedParam, string ColumnName) ParseReturnColumn(
         string alias,
         Expression valueExpr,
         ParameterExpression deletedParam,
@@ -682,7 +678,7 @@ public abstract class RelationalUpsertCommandRunner : UpsertCommandRunnerBase
             var property = entityType.FindProperty(propInfo.Name)
                 ?? throw new ArgumentException(Resources.FormatUnknownProperty(propInfo.Name));
 
-            return new ReturnColumn(alias, isDeleted, property.GetColumnName());
+            return (alias, isDeleted, property.GetColumnName());
         }
 
         throw new ArgumentException(
@@ -697,6 +693,7 @@ public abstract class RelationalUpsertCommandRunner : UpsertCommandRunnerBase
     protected static Func<DbDataReader, TOutput> CreateReaderMapper<TEntity, TOutput>(
         Expression<Func<TEntity, TEntity, TOutput>> expression)
     {
+        ArgumentNullException.ThrowIfNull(expression);
         switch (expression.Body)
         {
             case MemberInitExpression memberInit:

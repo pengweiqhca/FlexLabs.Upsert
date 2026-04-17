@@ -65,6 +65,9 @@ public class PostgreSqlUpsertCommandRunner : RelationalUpsertCommandRunner
             result.Append(" RETURNING *");
         }
 
+        if (returnColumns != null)
+            throw new NotSupportedException(Resources.ReturnWithDeletedNotSupported);
+
         return result.ToString();
     }
 }

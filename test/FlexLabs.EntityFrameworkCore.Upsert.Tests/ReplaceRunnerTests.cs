@@ -21,7 +21,8 @@ public class ReplaceRunnerTests
             ICollection<(string ColumnName, bool IsNullable)> joinColumns,
             ICollection<(string ColumnName, IKnownValue Value)> updateExpressions,
             KnownExpression updateCondition,
-            bool returnResult = false)
+            bool returnResult = false,
+            ICollection<(string Alias, bool IsDeletedParam, string ColumnName)>? returnColumns = null)
         {
             GenerateCalled++;
             return "sql";
