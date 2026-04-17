@@ -29,7 +29,6 @@ public class SqlServerUpsertCommandRunner : RelationalUpsertCommandRunner
         ICollection<(string ColumnName, bool IsNullable)> joinColumns,
         ICollection<(string ColumnName, IKnownValue Value)>? updateExpressions,
         KnownExpression? updateCondition,
-        bool returnResult = false,
         ICollection<(string Alias, bool IsDeletedParam, string ColumnName)>? returnColumns = null)
     {
         var result = new StringBuilder();
@@ -54,13 +53,13 @@ public class SqlServerUpsertCommandRunner : RelationalUpsertCommandRunner
             result.Append(" THEN UPDATE SET ");
             result.Append(string.Join(", ", updateExpressions.Select((e, i) => $"{EscapeName(e.ColumnName)} = {ExpandValue(e.Value)}")));
         }
-        if (returnColumns != null)
+        if (returnColumns != null && returnColumns.Count > 0)
         {
             result.Append(" OUTPUT ");
             result.Append(string.Join(", ", returnColumns.Select(c =>
                 $"{(c.IsDeletedParam ? "deleted" : "inserted")}.[{c.ColumnName}] AS [{c.Alias}]")));
         }
-        else if (returnResult)
+        else if (returnColumns != null)
         {
             result.Append(" OUTPUT inserted.*");
         }

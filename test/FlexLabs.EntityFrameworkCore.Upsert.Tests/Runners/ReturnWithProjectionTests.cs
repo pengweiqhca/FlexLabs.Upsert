@@ -9,7 +9,7 @@ namespace FlexLabs.EntityFrameworkCore.Upsert.Tests.Runners;
 
 /// <summary>
 /// Tests for GenerateCommand with returnColumns (deleted/inserted projection) for SQL Server,
-/// and tests that unsupported providers throw NotSupportedException.
+/// and tests that unsupported providers throw the expected exceptions.
 /// </summary>
 public class ReturnWithProjectionTests
 {
@@ -57,7 +57,6 @@ public class ReturnWithProjectionTests
             MakeJoinColumns(),
             updateExpressions: null,
             updateCondition: null,
-            returnResult: false,
             returnColumns: returnColumns);
 
         Assert.Contains("OUTPUT inserted.[Name] AS [Name], inserted.[Total] AS [Total]", sql);
@@ -79,14 +78,28 @@ public class ReturnWithProjectionTests
             MakeJoinColumns(),
             updateExpressions: null,
             updateCondition: null,
-            returnResult: false,
             returnColumns: returnColumns);
 
         Assert.Contains("OUTPUT deleted.[Name] AS [OldName], inserted.[Name] AS [NewName]", sql);
     }
 
     [Fact]
-    public void SqlServer_GenerateCommand_ReturnResult_StillWorksWhenNoReturnColumns()
+    public void SqlServer_GenerateCommand_EmptyReturnColumns_ReturnsAll()
+    {
+        // empty collection = returnResult=true (all columns via OUTPUT inserted.*)
+        var sql = _sqlServerRunner.GenerateCommand(
+            "[TestEntity]",
+            MakeEntities(),
+            MakeJoinColumns(),
+            updateExpressions: null,
+            updateCondition: null,
+            returnColumns: []);
+
+        Assert.Contains("OUTPUT inserted.*", sql);
+    }
+
+    [Fact]
+    public void SqlServer_GenerateCommand_NullReturnColumns_NoOutput()
     {
         var sql = _sqlServerRunner.GenerateCommand(
             "[TestEntity]",
@@ -94,16 +107,29 @@ public class ReturnWithProjectionTests
             MakeJoinColumns(),
             updateExpressions: null,
             updateCondition: null,
-            returnResult: true,
             returnColumns: null);
 
-        Assert.Contains("OUTPUT inserted.*", sql);
+        Assert.DoesNotContain("OUTPUT", sql);
     }
 
-    // ── Unsupported providers throw ───────────────────────────────────────────
+    // ── PostgreSQL ────────────────────────────────────────────────────────────
 
     [Fact]
-    public void PostgreSql_GenerateCommand_ReturnColumns_Throws()
+    public void PostgreSql_GenerateCommand_EmptyReturnColumns_ReturnsAll()
+    {
+        var sql = _postgresRunner.GenerateCommand(
+            "\"TestEntity\"",
+            MakeEntities(),
+            MakeJoinColumns(),
+            updateExpressions: null,
+            updateCondition: null,
+            returnColumns: []);
+
+        Assert.Contains("RETURNING *", sql);
+    }
+
+    [Fact]
+    public void PostgreSql_GenerateCommand_NonEmptyReturnColumns_Throws()
     {
         var returnColumns = new List<(string Alias, bool IsDeletedParam, string ColumnName)>
         {
@@ -116,7 +142,6 @@ public class ReturnWithProjectionTests
             MakeJoinColumns(),
             updateExpressions: null,
             updateCondition: null,
-            returnResult: false,
             returnColumns: returnColumns));
     }
 
@@ -134,8 +159,20 @@ public class ReturnWithProjectionTests
             MakeJoinColumns(),
             updateExpressions: null,
             updateCondition: null,
-            returnResult: false,
             returnColumns: returnColumns));
+    }
+
+    [Fact]
+    public void MySql_GenerateCommand_EmptyReturnColumns_Throws()
+    {
+        // Even empty collection (= returnResult=true) is not supported by MySQL
+        Assert.Throws<NotImplementedException>(() => _mysqlRunner.GenerateCommand(
+            "`TestEntity`",
+            MakeEntities(),
+            MakeJoinColumns(),
+            updateExpressions: null,
+            updateCondition: null,
+            returnColumns: []));
     }
 
     [Fact]
@@ -152,7 +189,6 @@ public class ReturnWithProjectionTests
             MakeJoinColumns(),
             updateExpressions: null,
             updateCondition: null,
-            returnResult: false,
             returnColumns: returnColumns));
     }
 

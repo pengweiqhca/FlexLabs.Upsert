@@ -37,7 +37,6 @@ public class PostgreSqlUpsertCommandRunner : RelationalUpsertCommandRunner
         ICollection<(string ColumnName, bool IsNullable)> joinColumns,
         ICollection<(string ColumnName, IKnownValue Value)>? updateExpressions,
         KnownExpression? updateCondition,
-        bool returnResult = false,
         ICollection<(string Alias, bool IsDeletedParam, string ColumnName)>? returnColumns = null)
     {
         var result = new StringBuilder();
@@ -60,13 +59,14 @@ public class PostgreSqlUpsertCommandRunner : RelationalUpsertCommandRunner
             result.Append("NOTHING");
         }
 
-        if (returnResult)
+        if (returnColumns != null && returnColumns.Count == 0)
         {
             result.Append(" RETURNING *");
         }
-
-        if (returnColumns != null)
+        else if (returnColumns != null)
+        {
             throw new NotSupportedException(Resources.ReturnWithDeletedNotSupported);
+        }
 
         return result.ToString();
     }

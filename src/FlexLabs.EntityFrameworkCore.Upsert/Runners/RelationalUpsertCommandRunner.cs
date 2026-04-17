@@ -27,12 +27,18 @@ public abstract class RelationalUpsertCommandRunner : UpsertCommandRunnerBase
     /// <param name="joinColumns">The columns used to match existing items in the database</param>
     /// <param name="updateExpressions">The expressions that represent update commands for matched entities</param>
     /// <param name="updateCondition">The expression that tests whether existing entities should be updated</param>
-    /// <param name="returnResult">If true, the generated command should return upserted entities</param>
-    /// <param name="returnColumns">If provided, specifies custom columns to return using deleted/inserted pseudo-tables. Overrides <paramref name="returnResult"/>.</param>
+    /// <param name="returnColumns">
+    /// Controls what the generated command returns:
+    /// <list type="bullet">
+    /// <item><description><see langword="null"/> – do not return any rows.</description></item>
+    /// <item><description>empty collection – return all columns via <c>inserted.*</c> / <c>RETURNING *</c>.</description></item>
+    /// <item><description>non-empty collection – return the specified columns from the <c>deleted</c>/<c>inserted</c> pseudo-tables. Providers that do not support this should throw <see cref="NotSupportedException"/>.</description></item>
+    /// </list>
+    /// </param>
     /// <returns>A fully formed database query</returns>
     public abstract string GenerateCommand(string tableName, ICollection<ICollection<(string ColumnName, ConstantValue Value, string? DefaultSql, bool AllowInserts)>> entities,
         ICollection<(string ColumnName, bool IsNullable)> joinColumns, ICollection<(string ColumnName, IKnownValue Value)>? updateExpressions,
-        KnownExpression? updateCondition, bool returnResult = false,
+        KnownExpression? updateCondition,
         ICollection<(string Alias, bool IsDeletedParam, string ColumnName)>? returnColumns = null);
     /// <summary>
     /// Escape the name of the table/column/schema in a given database language
@@ -109,7 +115,7 @@ public abstract class RelationalUpsertCommandRunner : UpsertCommandRunnerBase
     protected virtual bool SupportsDeletedInReturn => false;
 
     private IEnumerable<(string SqlCommand, IEnumerable<ConstantValue> Arguments)> PrepareCommand<TEntity>(IEntityType entityType, ICollection<TEntity> entities,
-        UpsertCommandArgs<TEntity> commandArgs, bool returnResult = false,
+        UpsertCommandArgs<TEntity> commandArgs,
         ICollection<(string Alias, bool IsDeletedParam, string ColumnName)>? returnColumns = null)
     {
         var table = TableCache.GetOrAdd(
@@ -159,7 +165,7 @@ public abstract class RelationalUpsertCommandRunner : UpsertCommandRunnerBase
             var columnUpdateExpressions = updateExpressions?.Length > 0
                 ? updateExpressions.Select(x => (x.Property.ColumnName, x.Value)).ToArray()
                 : null;
-            var sqlCommand = GenerateCommand(table.TableName, newEntities.Skip(entitiesProcessed - entitiesHere).Take(entitiesHere).ToArray(), joinColumnNames, columnUpdateExpressions, updateConditionExpression, returnResult, returnColumns);
+            var sqlCommand = GenerateCommand(table.TableName, newEntities.Skip(entitiesProcessed - entitiesHere).Take(entitiesHere).ToArray(), joinColumnNames, columnUpdateExpressions, updateConditionExpression, returnColumns);
             yield return (sqlCommand, arguments);
         }
     }
@@ -341,7 +347,7 @@ public abstract class RelationalUpsertCommandRunner : UpsertCommandRunnerBase
         ArgumentNullException.ThrowIfNull(commandArgs);
 
         var relationalTypeMappingSource = dbContext.GetService<IRelationalTypeMappingSource>();
-        var commands = PrepareCommand(entityType, entities, commandArgs, true);
+        var commands = PrepareCommand(entityType, entities, commandArgs, returnColumns: []);
 
         var result = new List<TEntity>();
         foreach (var (sqlCommand, arguments) in commands)
@@ -385,7 +391,7 @@ public abstract class RelationalUpsertCommandRunner : UpsertCommandRunnerBase
         ArgumentNullException.ThrowIfNull(commandArgs);
 
         var relationalTypeMappingSource = dbContext.GetService<IRelationalTypeMappingSource>();
-        var commands = PrepareCommand(entityType, entities, commandArgs, true);
+        var commands = PrepareCommand(entityType, entities, commandArgs, returnColumns: []);
 
         var result = new List<TEntity>();
         foreach (var (sqlCommand, arguments) in commands)
